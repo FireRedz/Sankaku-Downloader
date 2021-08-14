@@ -4,11 +4,11 @@ A downloader for SankakuComplex images written in python.
 
 ## Running the program
 
-To use the program simply download the [latest release](https://github.com/fc-dev/Sankaku-Downloader/releases/latest) for your operating system and run it.
+To use the program simply download the [latest release](https://github.com/fc-dev/FireRedz/releases/latest) for your operating system and run it.
 
 ### Prerequisites
 
-To run the program directly from source you need python (3.7.4) installed, but if you download a release it's already bundled with python so you don't need to download it.
+To run the program directly from source you need python (3.8.6) installed, but if you download a release it's already bundled with python so you don't need to download it.
 
 ## Building
 

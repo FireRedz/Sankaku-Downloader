@@ -4,7 +4,7 @@ block_cipher = None
 
 
 a = Analysis(['main.py'],
-             pathex=['D:\\Projects\\Contributing\\Sankaku-Downloader'],
+             pathex=['.'],
              binaries=[],
              datas=[('resources/icon.ico','resources')],
              hiddenimports=[],
