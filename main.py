@@ -29,8 +29,6 @@ class MainWindow(Tk):
     logTextArea = None
     #endregion
 
-    threads = []
-
     def __init__(self):
         super(MainWindow,self).__init__()
         self.init_gui()
@@ -114,8 +112,7 @@ class MainWindow(Tk):
         thread = threading.Thread(target = task.download)
         thread.daemon = True
 
-        self.output('[Thread] Thread started and added to the global list.')
-        self.threads += [thread]
+        self.output('[Thread] Thread started.')
         thread.start()
 
     def browseButton_Click(self):
