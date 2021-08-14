@@ -1,6 +1,7 @@
 import requests
 import mimetypes
 import json
+from pathlib import Path
 
 # region Sankaku stuff
 API_URL = "https://capi-v2.sankakucomplex.com/"
@@ -13,17 +14,12 @@ POST_MIME = "file_type"
 
 class Sankaku:
     __session: object = requests.Session()
-
-    progress: int = 0
-    total: int = 0
-    statusMessage: str = "idle"
-
     posts: list = []
 
 
-    def __init__(self, tags, folder, custom_url, print_fn = None):
+    def __init__(self, tags: str, folder: str, custom_url: str, print_fn: callable = None):
         self.tags = tags
-        self.folder = folder
+        self.folder = Path(folder)
         self.custom_url = custom_url
         self.print = print_fn
 
@@ -34,40 +30,42 @@ class Sankaku:
         #remove everything before .:?
         return url[lastDotBeforeQM:lastQuestionMark]
 
-    @staticmethod
-    def download_post(post: dict, folder: str):
+    def download_post(self, post: dict, folder: str):
         if(post[POST_URL] == None):
-            print(f"Can't download: {post}")
+            self.output(f"Can't download: {post}")
 
-        r = Sankaku.__session.get(post[POST_URL])
-        open(folder+"\\"+str(post[POST_ID]) + Sankaku.__getFileType(post[POST_URL]), 'wb').write(r.content)
+        r = self.__session.get(post[POST_URL])
+        #open(folder+"\\"+str(post[POST_ID]) + self.__getFileType(post[POST_URL]), 'wb').write(r.content)
+        target = self.folder / f'{post[POST_ID]}{self.__getFileType(post[POST_URL])}'
+        target.write_bytes(r.content)
 
-    @staticmethod
-    def get_info_from_id(id: int):
+    def get_info_from_id(self, id: int):
         # either returns a list of images or just one
         # Check the doujin api first before the normal one image post
         #### Doujin api
-        res = Sankaku.__session.get(f'https://capi-v2.sankakucomplex.com/pools/{id}?lang=en')
+        res = self.__session.get(f'https://capi-v2.sankakucomplex.com/pools/{id}?lang=en')
 
         if res.status_code != 200:
-            print(f'{id} is not a doujin/book, trying normal image api.')
+            self.output(f'{id} is not a doujin/book, trying normal image api.')
         else:
-            print(f'{id} is a doujin/book, reading data!')
+            self.output(f'{id} is a doujin/book, reading data!')
 
-            return res.json()['posts']
+            data = res.json()
+            
+            return data['posts'], data['name_en']
 
         #### Normal api
-        res = Sankaku.__session.get(f'https://capi-v2.sankakucomplex.com/posts?lang=en&page=1&limit=1&tags=id_range:{id}')
+        res = self.__session.get(f'https://capi-v2.sankakucomplex.com/posts?lang=en&page=1&limit=1&tags=id_range:{id}')
         
         if res.status_code != 200:
-            return print('Failed to get api data even on normal api, prolly an invalid id... Returning!')
+            return self.output('Failed to get api data even on normal api, prolly an invalid id... Returning!')
 
         res = res.json()
 
         if len(res) == 0:
-            return print('API returns nothing, returning...')
+            return self.output('API returns nothing, returning...'), None
 
-        return [res[0]]
+        return [res[0]], None
 
     def get_posts(self):
         page = ""
@@ -96,28 +94,36 @@ class Sankaku:
         return json.loads(Sankaku.__session.get(API_URL + 'posts/keyset', params = params).content)
 
     def output(self, string: str):
-        if(callable(self.print)): self.print(string)
+        if self.print:
+            self.print(string)
 
     def download(self):
-        Sankaku.__session.headers['User-Agent'] = HTTP_HEADERS['User-Agent']
+        self.__session.headers['User-Agent'] = HTTP_HEADERS['User-Agent']
 
         # Check if theres custom url or some shit
         if len(self.custom_url) > 0:
             self.output('Custom ID given, using that instead.')
-            posts = Sankaku.get_info_from_id(self.custom_url)
+            posts, folder_name = self.get_info_from_id(self.custom_url)
+
+            if folder_name:
+                self.output(f'Saving downloads into {folder_name}')
+                self.folder = self.folder / folder_name
         else:
             self.output('No custom url given, downloading based off tags.')
             self.progress = 0
             posts = self.get_posts()
 
         # GOT DAMN
-        if len(posts) == 0:
+        if not posts:
             return self.output('No Posts/Image found, returning.')
 
-        self.total = len(posts)
-        for i in range(self.total):
-            self.output("D("+ str(i+1) +"/" +str(self.total) +"):" + str(posts[i][POST_ID]))
-            Sankaku.download_post(posts[i],self.folder)
-            self.progress += 1
+        if not self.folder.exists():
+            self.output('Download folder did not exists, creating!')
+            self.folder.mkdir()
+
+        total = len(posts)
+        for i in range(total):
+            self.output(f'D({i+1}/{total}): {posts[i][POST_ID]}')
+            self.download_post(posts[i],self.folder)
 
         self.output("Complete")
