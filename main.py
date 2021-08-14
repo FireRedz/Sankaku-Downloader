@@ -30,8 +30,8 @@ class MainWindow(Tk):
 
     def __init__(self):
         super(MainWindow,self).__init__()
-        self.title("Sankaku Downloader")
-        self.geometry('350x200')
+        self.title("Sankaku Downloader | GOT DAMN EDITION")
+        self.geometry('420x300')
         self.update()
         self.minsize(self.winfo_width(), self.winfo_height())
 
