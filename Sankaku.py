@@ -39,7 +39,7 @@ class Sankaku:
             self.page_limit = 1
         else:
             self.output(f"[Sankaku] Maximum page for query is {page_limit}")
-            self.page_limit = int(page_limit)
+            self.page_limit = max(int(page_limit), 1)
 
     @staticmethod
     def __getFileType(url: str):
