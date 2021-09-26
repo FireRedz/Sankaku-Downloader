@@ -1,11 +1,13 @@
 import os
 import sys
+import json
 import tkinter
 import tkinter.filedialog
 import threading
 
 from tkinter import *
 from Sankaku import Sankaku
+from pathlib import Path
 
 
 def resource_path(relative_path):
@@ -27,12 +29,49 @@ class MainWindow(Tk):
     idEntry = None
     browseButton = None
     downloadButton = None
+    tokenEntryString = None
+    tokenEntry = None
     logTextArea = None
     # endregion
 
+    # settings
+    settings: Path = Path("settings.json")
+    download_folder: str = "downloads/"
+    pages_limit: str = "1"  # theres some syntax on doujin thats why its a string
+    access_token: str = ""
+
     def __init__(self):
         super(MainWindow, self).__init__()
+        self.load_shit_from_settings()
         self.init_gui()
+
+    def load_shit_from_settings(self) -> None:
+        self.output("[Sankaku] Loading settings.json")
+
+        if not self.settings.exists():
+            self.output("[Sankaku] settings.json did not exists, creating one!")
+            self.save_shit_into_settings()
+
+        # load shit
+        data = json.loads(self.settings.read_text())
+        self.download_folder = data["download_folder"]
+        self.access_token = data["access_token"]
+        self.pages_limit = data["pages_limit"]
+
+        self.output("[Sankaku] Loaded!")
+
+    def save_shit_into_settings(self) -> None:
+        self.output("[Sankaku] Saving shit into settings.json!")
+        self.settings.write_text(
+            json.dumps(
+                {
+                    "download_folder": self.download_folder,
+                    "access_token": self.access_token,
+                    "pages_limit": self.pages_limit,
+                },
+                indent=4,
+            )
+        )
 
     def init_gui(self):
         self.title("Sankaku Downloader | GOT DAMN EDITION")
@@ -69,7 +108,9 @@ class MainWindow(Tk):
         temp = Label(parent, text="Page Limit:")
         temp.grid(row=1, column=0, sticky="w", padx=gridpadding)
 
-        self.queryLimit = Entry(parent)
+        self.queryLimit = Entry(
+            parent, textvariable=StringVar(self, value=self.pages_limit)
+        )
         self.queryLimit.grid(
             row=1, column=1, sticky="we", padx=gridpadding, columnspan=2
         )
@@ -86,7 +127,7 @@ class MainWindow(Tk):
         temp = Label(parent, text="Download Folder:")
         temp.grid(row=3, column=0, sticky="w", padx=gridpadding)
 
-        self.downloadFolderString = StringVar(self, value="downloads")
+        self.downloadFolderString = StringVar(self, value=self.download_folder)
         self.downloadFolderEntry = Entry(parent, textvariable=self.downloadFolderString)
         self.downloadFolderEntry.grid(row=3, column=1, sticky="we", padx=gridpadding)
 
@@ -96,13 +137,23 @@ class MainWindow(Tk):
         self.browseButton.grid(row=3, column=2, sticky="e", padx=gridpadding)
         # endregion
 
+        # fucken token
+        temp = Label(parent, text="Token:")
+        temp.grid(row=4, column=0, sticky="w", padx=gridpadding)
+
+        self.tokenEntryString = StringVar(self, value=self.access_token)
+        self.tokenEntry = Entry(parent, textvariable=self.tokenEntryString)
+        self.tokenEntry.grid(
+            row=4, column=1, sticky="we", padx=gridpadding, columnspan=2
+        )
+        # endregion
+
         # region Download Button
         self.downloadButton = Button(parent)
         self.downloadButton.configure(
             text="Download", command=self.downloadButton_Click
         )
-        self.downloadButton.grid(row=4, column=0, sticky="w", padx=gridpadding)
-        # endregion
+        self.downloadButton.grid(row=5, column=0, sticky="w", padx=gridpadding)
         # endregion
 
         self.logTextArea = Text(self)
@@ -116,11 +167,19 @@ class MainWindow(Tk):
         if not os.path.exists(self.downloadFolderEntry.get()):
             os.mkdir(self.downloadFolderEntry.get())
 
+        # save shit into json
+        self.download_folder = self.downloadFolderEntry.get().strip()
+        self.access_token = self.tokenEntry.get().strip()
+        self.pages_limit = self.queryLimit.get().strip()
+        #
+        self.save_shit_into_settings()
+
         task = Sankaku(
             self.queryEntry.get().strip(),
-            self.downloadFolderEntry.get().strip(),
+            self.download_folder,
             self.idEntry.get().strip(),
-            self.queryLimit.get().strip(),
+            self.pages_limit,
+            self.access_token,
             self.output,
         )
         thread = threading.Thread(target=task.download)
@@ -137,8 +196,11 @@ class MainWindow(Tk):
             self.downloadFolderString.set(directory)
 
     def output(self, string):
-        self.logTextArea.insert(END, string + "\r\n")
-        self.logTextArea.see(END)
+        if self.logTextArea:
+            self.logTextArea.insert(END, string + "\r\n")
+            self.logTextArea.see(END)
+        else:
+            print(string)
 
 
 if __name__ == "__main__":
