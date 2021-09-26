@@ -4,7 +4,7 @@ A downloader for SankakuComplex images written in python.
 
 ## Running the program
 
-To use the program simply download the [latest release](https://github.com/fc-dev/FireRedz/releases/latest) for your operating system and run it.
+To use the program simply download the [latest release](https://github.com/FireRedz/Sankaku-Downloader/releases/latest) for your operating system and run it.
 
 ### Prerequisites
 
@@ -26,10 +26,10 @@ If you want to help with this project contact me or do a pull request.
 
 ## Authors
 
-* **Federico Capece** - UI and backend - [fc-dev](https://github.com/fc-dev)
+* **Federico Capece** - The creator - [fc-dev](https://github.com/fc-dev)
+* **FireRedz** - UI and Backend - [FireRedz](https://github.com/FireRedz)
 
-See also the list of [contributors](https://github.com/fc-dev/Sankaku-Downloader/contributors) who participated in this project.
+See also the list of [contributors](https://github.com/FireRedz/Sankaku-Downloader/contributors) who participated in this project.
 
 ## License
-
 This project is licensed under the GPL3 License - see the [LICENSE](LICENSE) file for details
