@@ -1,6 +1,7 @@
 # Sankaku-Downloader
 
-A downloader for SankakuComplex images written in python.
+A downloader for SankakuComplex images written in python. <br/>
+Note that the only reason im maintaining this is because of my friend, so no feature request unless its a legit cool one.
 
 ## Running the program
 
