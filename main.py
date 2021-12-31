@@ -156,12 +156,41 @@ class SankakuDownloaderWindow(tkinter.Tk):
             posts = self.sankaku.get_from_id(query)
         else:
             self.log("[App] Getting from tags!")
-            posts = self.sankaku.get_from_tags(query)
+            posts = self.sankaku.get_from_tags(
+                query, *self.parse_page_syntax(self.settings["pages"])
+            )
 
         if posts:
             self.sankaku.download_from(posts, self.settings["download_folder"])
         else:
             self.log("[App] Nothing found.")
+
+    # Utils
+    def parse_page_syntax(self, text: str) -> list[int, int]:
+        if not text.isdigit():
+            if len(items := text.split("-")) >= 2:
+                self.log(f"[App] min_page: {items[0]}, max_page: {items[1]}")
+                min_page = max(int(items[0]), 1)
+                max_page = int(items[1])
+
+                if min_page > max_page:
+                    self.log(
+                        "[App] min_page is higher than max_page, attempting to fix the number."
+                    )
+                    min_page = max_page - 1
+
+            else:
+                self.log(
+                    "[App] Invalid syntax using default settings, min_page=1, max_page=1"
+                )
+                min_page = 1
+                max_page = 1
+        else:
+            self.log(f"[App] No syntax defined, max_page is {text}")
+            min_page = 1
+            max_page = max(int(text), 1)
+
+        return [min_page, max_page]
 
 
 if __name__ == "__main__":
