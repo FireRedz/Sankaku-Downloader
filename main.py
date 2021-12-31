@@ -6,7 +6,7 @@ import tkinter.filedialog
 import threading
 
 from tkinter import *
-from Sankaku import Sankaku
+from api import SankakuOld
 from pathlib import Path
 
 # Some weird linux quirks that windows doesnt support
