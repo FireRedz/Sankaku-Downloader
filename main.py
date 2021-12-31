@@ -9,6 +9,9 @@ from tkinter import *
 from Sankaku import Sankaku
 from pathlib import Path
 
+# Some weird linux quirks that windows doesnt support
+IS_ON_WINDOWS: bool = os.name == "nt"
+
 
 def resource_path(relative_path):
     if hasattr(sys, "_MEIPASS"):
@@ -87,7 +90,8 @@ class MainWindow(Tk):
             datafile = os.path.join(sys.prefix, datafile)
         # endregion
 
-        self.iconbitmap(default=resource_path(datafile))
+        if IS_ON_WINDOWS:
+            self.iconbitmap(default=resource_path(datafile))
 
         # region Panel Input
         gridpadding = 2
