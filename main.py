@@ -1,5 +1,6 @@
 import json
 import tkinter
+import threading
 from pathlib import Path
 from datetime import datetime
 
@@ -142,28 +143,32 @@ class SankakuDownloaderWindow(tkinter.Tk):
 
     # Events
     def on_click_download_button(self) -> None:
-        # Save when downloading
-        self.settings["download_folder"] = self.download_folder_entry.get()
-        self.settings["access_token"] = self.access_token_entry.get()
-        self.settings["pages"] = self.page_entry.get()
-        self.save_settings()
+        def on_new_thread(self: "SankakuDownloaderWindow") -> None:
+            # Save when downloading
+            self.settings["download_folder"] = self.download_folder_entry.get()
+            self.settings["access_token"] = self.access_token_entry.get()
+            self.settings["pages"] = self.page_entry.get()
+            self.save_settings()
 
-        self.sankaku.update_access_token(self.settings["access_token"])
+            self.sankaku.update_access_token(self.settings["access_token"])
 
-        # Not the best way to do this but itll do for now
-        if (query := self.query_entry.get()).isnumeric():
-            self.log("[App] Getting from ID!")
-            posts = self.sankaku.get_from_id(query)
-        else:
-            self.log("[App] Getting from tags!")
-            posts = self.sankaku.get_from_tags(
-                query, *self.parse_page_syntax(self.settings["pages"])
-            )
+            # Not the best way to do this but itll do for now
+            if (query := self.query_entry.get()).isnumeric():
+                self.log("[App] Getting from ID!")
+                posts = self.sankaku.get_from_id(query)
+            else:
+                self.log("[App] Getting from tags!")
+                posts = self.sankaku.get_from_tags(
+                    query, *self.parse_page_syntax(self.settings["pages"])
+                )
 
-        if posts:
-            self.sankaku.download_from(posts, self.settings["download_folder"])
-        else:
-            self.log("[App] Nothing found.")
+            if posts:
+                self.sankaku.download_from(posts, self.settings["download_folder"])
+            else:
+                self.log("[App] Nothing found.")
+
+        thread = threading.Thread(target=on_new_thread, args=(self,), daemon=True)
+        thread.start()
 
     # Utils
     def parse_page_syntax(self, text: str) -> list[int, int]:
