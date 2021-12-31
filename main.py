@@ -61,7 +61,7 @@ class SankakuDownloaderWindow(tkinter.Tk):
         self.parent.grid_columnconfigure(index=1, weight=1)
 
         # Top label for warning or something
-        self.top_label = tkinter.Label(self.parent, text="doing your mom")
+        self.top_label = tkinter.Label(self.parent, text="")
         self.top_label.grid(row=0, column=0, padx=2, columnspan=2, pady=5)
 
         # Query
@@ -74,7 +74,7 @@ class SankakuDownloaderWindow(tkinter.Tk):
         self.access_token_label = tkinter.Label(self.parent, text="Token:")
         self.access_token_entry = tkinter.Entry(self.parent)
         self.access_token_label.grid(row=2, column=0, padx=2)
-        self.access_token_entry.grid(row=2, column=1, padx=2, sticky="we")
+        self.access_token_entry.grid(row=2, column=1, sticky="we", padx=2, columnspan=2)
 
         # Page
         self.page_label = tkinter.Label(self.parent, text="Page:")
@@ -125,6 +125,9 @@ class SankakuDownloaderWindow(tkinter.Tk):
             self.top_label.configure(
                 text="hey buddy you might want to fill in the access_token so everything works fine."
             )
+
+        if self.settings["access_token"]:
+            self.top_label.grid_forget()
 
         # Set
         self.page_entry.insert(0, self.settings["pages"])

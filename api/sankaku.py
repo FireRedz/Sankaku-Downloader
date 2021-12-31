@@ -34,8 +34,9 @@ class Post:
 
     @property
     def file_type(self) -> str:
-        # Assuming we're getting from the highest quality url
-        return self.url.file.split("?", 1)[0].split(".")[-1]
+        if self.url.file:
+            # Assuming we're getting from the highest quality url and the url is here
+            return self.url.file.split("?", 1)[0].split(".")[-1]
 
     @property
     def download_url(self) -> str:
@@ -121,17 +122,43 @@ class Sankaku:
 
         self.session.headers["Authorization"] = f"Bearer {token}"
 
-    def get_from_tags(self, tags: str) -> list[Post] | None:
-        with self.session.get(
-            f"{self.API_URL}/posts/keyset", params={"tags": tags}
-        ) as res:
+    def _get_from_tags(
+        self, tags: str, next_page_hash: str = None
+    ) -> list[Post] | None:
+        params = {"tags": tags, "limit": 40}
+
+        if next_page_hash:
+            params["next"] = next_page_hash
+
+        with self.session.get(f"{self.API_URL}/posts/keyset", params=params) as res:
             if not res or res.status_code != 200:
                 return self.log(f"[Sankaku] {tags} is Invalid.")
 
-            # TODO: Page support
-
             posts = res.json()
-            return [Post.from_dict(post) for post in posts["data"]]
+            return [Post.from_dict(post) for post in posts["data"]], posts["meta"][
+                "next"
+            ]
+
+    def get_from_tags(
+        self, tags: str, min_page: int = 1, max_page: int = 5
+    ) -> list[Post]:
+        next_page_hash: str = ""
+        posts: list[Post] = []
+
+        for i in range(max_page):
+            self.log(f"[Sankaku] Getting page {i+1}/{max_page}")
+            if next_page_hash == None:  # SankakuComplex api stops giving next_page hash
+                break
+
+            # Check if we;re in the page range
+            if i >= min_page - 1:
+                if temp := self._get_from_tags(
+                    tags=tags, next_page_hash=next_page_hash
+                ):
+                    posts.extend(temp[0])
+                    next_page_hash = temp[1]
+
+        return posts
 
     def get_from_id(self, id: int) -> Doujin | Post | None:
         with self.session.get(f"{self.API_URL}/pools/{id}") as res:
@@ -206,6 +233,9 @@ class Sankaku:
         if not output_folder.exists():
             output_folder.mkdir()
 
+        # Log
+        self.log(f"[Sankaku] Downloading {len(files_to_download)} images!")
+
         def download_thread(
             session: requests.Session,
             files_to_download: dict[int, str],
@@ -214,18 +244,21 @@ class Sankaku:
             def download_process(args: list[object]) -> None:
                 file, url = args
 
+                if (target_path := (output_folder / file)).exists():
+                    return self.log("[Sankaku] File already exists, returning.")
+
                 self.log(f"[Sankaku] Downloading {file}")
                 with session.get(url) as res:
                     if res.status_code != 200:
                         return self.log(f"[Sankaku] Failed to download file `{file}`")
 
                     # Save it
-                    (output_folder / file).write_bytes(res.content)
+                    target_path.write_bytes(res.content)
                     self.log(f"[Sankaku] Downloaded {file}!")
 
-            ThreadPool(8).imap(
+            ThreadPool(4).imap(
                 download_process,
-                [[file[0], file[1]] for file in files_to_download],
+                [[file[0], file[1]] for file in files_to_download if file[1]],
             )
 
         thread = threading.Thread(
