@@ -71,7 +71,7 @@ class Doujin:
 
     @property
     def download_urls(self) -> dict[int, str]:
-        return {p.filename: p.download_url for p in self.posts}
+        return [[p.filename, p.download_url] for p in self.posts]
 
     @classmethod
     def from_dict(cls: "Doujin", data: dict) -> "Doujin":
@@ -104,20 +104,29 @@ class Sankaku:
     # ATTRs
     session: requests.Session
 
-    def __init__(self, access_token: str = None) -> None:
+    def __init__(self, access_token: str = None, logging_cb: callable = None) -> None:
+        # Logging
+        self.log = logging_cb
+
         # Init HTTP session
         self.session = requests.Session()
         self.session.headers.update(Sankaku.API_HEADERS)
 
         if access_token:
-            self.session.headers["Authorization"] = f"Bearer {access_token}"
+            self.update_access_token(access_token)
+
+    def update_access_token(self, token: str) -> None:
+        if not token:
+            return self.session.headers.pop("Authorization", None)
+
+        self.session.headers["Authorization"] = f"Bearer {token}"
 
     def get_from_tags(self, tags: str) -> list[Post] | None:
         with self.session.get(
             f"{self.API_URL}/posts/keyset", params={"tags": tags}
         ) as res:
             if not res or res.status_code != 200:
-                return print(f"[Sankaku] {tags} is Invalid.")
+                return self.log(f"[Sankaku] {tags} is Invalid.")
 
             # TODO: Page support
 
@@ -127,19 +136,19 @@ class Sankaku:
     def get_from_id(self, id: int) -> Doujin | Post | None:
         with self.session.get(f"{self.API_URL}/pools/{id}") as res:
             if not res or res.status_code != 200:
-                print("[Sankaku] Is not an Doujin, trying Post API.")
+                self.log("[Sankaku] Is not an Doujin, trying Post API.")
             else:
-                print("[Sankaku] Found a doujin, reading!")
+                self.log("[Sankaku] Found a doujin, reading!")
 
                 doujin = Doujin.from_dict(res.json())
 
-                # Print basic shit
-                print(f"[Sankaku] Title: {doujin.name.en}")
-                print(f"[Sankaku] Pages: {len(doujin.posts)} page")
+                # self.log basic shit
+                self.log(f"[Sankaku] Title: {doujin.name.en}")
+                self.log(f"[Sankaku] Pages: {len(doujin.posts)} page")
 
                 # Check for pages
                 if not doujin.posts:
-                    return print(
+                    return self.log(
                         f"[Sankaku] API retrieved but no posts given, please use accessToken."
                     )
 
@@ -151,16 +160,16 @@ class Sankaku:
             params={"page": 1, "limit": 1, "tags": f"id_range:{id}"},
         ) as res:
             if not res or res.status_code != 200:
-                return print("[Sankaku] Failed to retrieved data even on post API!")
+                return self.log("[Sankaku] Failed to retrieved data even on post API!")
             else:
                 # Sometimes Sankaku just returns nothing on "fucked up" posts so
                 # check that too
                 if not (res := res.json()):
-                    return print(
+                    return self.log(
                         "[Sankaku] API retrieved but no data received, please use accessToken."
                     )
 
-                print(f"[Sankaku] Post retrieved!")
+                self.log(f"[Sankaku] Post retrieved!")
 
                 # OK bruh
                 res = res[0]
@@ -174,17 +183,24 @@ class Sankaku:
             folder = doujin_or_post.name.en
             files_to_download = doujin_or_post.download_urls
         elif isinstance(doujin_or_post, list):
-            folder = ""
-            files_to_download = {post.id: post.filename for post in doujin_or_post}
+            folder = "posts"
+            files_to_download = [
+                [post.filename, post.download_url] for post in doujin_or_post
+            ]
         elif isinstance(doujin_or_post, Post):
-            folder = ""
-            files_to_download = {doujin_or_post.filename: doujin_or_post.download_url}
+            folder = "posts"
+            files_to_download = [[doujin_or_post.filename, doujin_or_post.download_url]]
         else:
-            print(type(doujin_or_post), "is not supported.")
+            return self.log(type(doujin_or_post), "is not supported.")
 
         # Default download location
         if not output_folder:
-            output_folder = Path("downloads") / folder
+            output_folder = Path("downloads")
+        else:
+            output_folder = Path(output_folder)
+
+        # Add folder if there is one
+        output_folder = output_folder / folder
 
         # Make if doesnt exists
         if not output_folder.exists():
@@ -197,17 +213,19 @@ class Sankaku:
         ) -> None:
             def download_process(args: list[object]) -> None:
                 file, url = args
+
+                self.log(f"[Sankaku] Downloading {file}")
                 with session.get(url) as res:
-                    if not res or res.status_code != 200:
-                        return print(f"[Sankaku] Failed to download file `{file}`")
+                    if res.status_code != 200:
+                        return self.log(f"[Sankaku] Failed to download file `{file}`")
 
                     # Save it
                     (output_folder / file).write_bytes(res.content)
-                    print(f"[Sankaku] Donwloaded {file}!")
+                    self.log(f"[Sankaku] Downloaded {file}!")
 
             ThreadPool(8).imap(
                 download_process,
-                [[file[0], file[1]] for file in files_to_download.items()],
+                [[file[0], file[1]] for file in files_to_download],
             )
 
         thread = threading.Thread(
@@ -217,16 +235,10 @@ class Sankaku:
         )
         thread.start()
 
-        print("[Sankaku] Download thread started!")
-
-        print("[Sankaku] Download thread finished!")
-
 
 if __name__ == "__main__":
     # Doujin
-    sankaku = Sankaku(
-        access_token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjE0MzUyMDgsInN1Ykx2bCI6MCwiaXNzIjoiaHR0cHM6Ly9jYXBpLXYyLnNhbmtha3Vjb21wbGV4LmNvbSIsInR5cGUiOiJCZWFyZXIiLCJhdWQiOiJjb21wbGV4Iiwic2NvcGUiOiJjb21wbGV4IiwiaWF0IjoxNjQwOTU1OTc5LCJleHAiOjE2NDExMjg3Nzl9.y4TkDX_ukr0vL_aDzgUAeJX2X0k3pMzZWWa8y3vgySk"
-    )
+    sankaku = Sankaku(access_token="")
 
     #
     print("> Doujin from ID")
